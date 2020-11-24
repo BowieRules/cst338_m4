@@ -132,11 +132,15 @@ class BarcodeImage implements Cloneable
             }
          }      
       }
+      else
+      {
+         System.out.println("Error: The input data is invalid");
+      }
    }
    
+   // Accessor for image
    boolean getPixel(int row, int col)
    {
-      // reverse row number here
       if(row >= MAX_HEIGHT || col >= MAX_WIDTH)
       {
          return false;
@@ -146,7 +150,7 @@ class BarcodeImage implements Cloneable
          return imageData[row][col];
       }
    }
-   
+   // Mutator for image
    boolean setPixel(int row, int col, boolean value)
    {
       if(row >= MAX_HEIGHT || col >= MAX_WIDTH)
@@ -172,7 +176,7 @@ class BarcodeImage implements Cloneable
       for (String element : data)
       {
          if (element == null || element.length() == 0 ||
-               element.length() > MAX_WIDTH)
+               element.length() + 2 > MAX_WIDTH)
          {
             return false;
          }
@@ -200,10 +204,14 @@ class BarcodeImage implements Cloneable
       }
    }
    
-   //Implements the clonable interface
-   public BarcodeImage clone() throws CloneNotSupportedException
+   //Implements the cloneable interface
+   @Override
+   protected Object clone() throws CloneNotSupportedException
    {
-      BarcodeImage clonedCopy = new BarcodeImage();
+      // cloning via super class
+      BarcodeImage clonedCopy = (BarcodeImage)super.clone();
+      
+      // manually moving image data
       for (int row = 0; row < MAX_HEIGHT; row++)
       {
          for (int col = 0; col < MAX_WIDTH; col++)
@@ -241,21 +249,27 @@ class DataMatrix implements BarcodeIO
    // sets the image but leaves default text
    public DataMatrix(BarcodeImage image)
    {
+      this();
       if (!scan(image))
       {
-         this.image = new BarcodeImage();
-         this.text = "undefined"; 
-         this.actualWidth = 0; 
-         this.actualHeight = 0;
+         System.out.println("Error scanning input image");
       }
    }
    
+   // sets the text but leaves the image at its default value
+   public DataMatrix(String text)
+   {
+      this();
+      readText(text);
+   }
+   
    // mutator for image
+   @Override
    public boolean scan(BarcodeImage image)
    {
       try
       {
-         this.image = image.clone();
+         this.image = (BarcodeImage)image.clone();
       }
       catch (CloneNotSupportedException e)
       {
@@ -270,20 +284,27 @@ class DataMatrix implements BarcodeIO
       actualWidth = computeSignalWidth();
       return true; 
    }
-   
+   @Override
    public boolean translateImageToText()
-   {   
-      String strText = "";
-      // ignore first column, start from 1
-      for(int i = 1; i < actualWidth - 1; i++)
+   {
+      if (this.image != null)
       {
-         // read each column individually
-         strText += readCharFromCol(i);
+         String strText = "";
+         // ignore first column, start from 1
+         for(int i = 1; i < actualWidth - 1; i++)
+         {
+            // read each column individually
+            strText += readCharFromCol(i);
+         }
+         //set the text value.
+         this.text = strText;
+         
+         return true;
       }
-      //set the text value.
-      this.text = strText;
-      
-      return true;
+      else
+      {
+         return false;
+      }         
    }
 
    private char readCharFromCol(int col)
@@ -415,12 +436,14 @@ class DataMatrix implements BarcodeIO
       image = new BarcodeImage();
    }
    
+   @Override
    public void displayTextToConsole()
    {
       System.out.println(this.text);
    }
    
-   // accepts a text string to translate 
+   // accepts a text string to translate
+   @Override
    public boolean readText(String text)
    {
       // leave 2 characters for borders
@@ -434,7 +457,7 @@ class DataMatrix implements BarcodeIO
          return true;
       }
    }
-   
+   @Override
    public boolean generateImageFromText()
    {
       // check to see if text is valid
@@ -447,7 +470,8 @@ class DataMatrix implements BarcodeIO
          // assume 10 as our maximum
          actualHeight = 10;
          
-         //create left border 511 = 111111111 in binary
+         // create left border 511 = 111111111 in binary
+         // at column 0
          writeCharToCol(0, 511);
          
          // print text
@@ -458,7 +482,8 @@ class DataMatrix implements BarcodeIO
             writeCharToCol(i + 1, code);
          }
          
-         //create right border
+         // create right border
+         // at last column
          writeCharToCol(text.length() + 1, 170);
    
          //Create top and bottom border
@@ -483,27 +508,36 @@ class DataMatrix implements BarcodeIO
    
    private boolean writeCharToCol(int col, int code)
    {
-      // Creates a boolean representation of binaryString
-      // Bitwise & AND - Sets each bit to 1 if both bits are 1
-      // 1 * pow(2, i)
-      // 32 bits limitation? Set to 10 in the meantime
-      boolean[] bits = new boolean[10];
-      for (int i = 0; i < 10; i++) {
-          bits[i] = (code & (1 << i)) != 0;
-      }
-
-      //Set corresponding column in image to true/false
-      // -2 start with the row before last
-      // because of bottom closed limitation line
-      int row = image.MAX_HEIGHT - 2;
-      //for each enhanced loop
-      for (boolean element : bits)
+      // since we assumed 10 as max height, code cannot
+      // be more than 1111111111 in binary = 1023
+      if (code > 1023)
       {
-         image.setPixel(row--, col, element);
-      }    
-      return true;   
-   }
+         return false;
+      }
+      else
+      {      
+         // Creates a boolean representation of binaryString
+         // Bitwise & AND - Sets each bit to 1 if both bits are 1
+         // 1 * pow(2, i)
+         // 32 bits limitation? Set to 10 in the meantime
+         boolean[] bits = new boolean[10];
+         for (int i = 0; i < 10; i++) {
+             bits[i] = (code & (1 << i)) != 0;
+         }
    
+         //Set corresponding column in image to true/false
+         // -2 start with the row before last
+         // because of bottom closed limitation line
+         int row = image.MAX_HEIGHT - 2;
+         //for each enhanced loop
+         for (boolean element : bits)
+         {
+            image.setPixel(row--, col, element);
+         }    
+         return true;
+      }
+   }
+   @Override
    public void displayImageToConsole()
    {
       // display with border
