@@ -260,7 +260,10 @@ class DataMatrix implements BarcodeIO
    public DataMatrix(String text)
    {
       this();
-      readText(text);
+      if (!readText(text))
+      {
+         System.out.println("Error: The input text is invalid");
+      }
    }
    
    // mutator for image
@@ -284,6 +287,7 @@ class DataMatrix implements BarcodeIO
       actualWidth = computeSignalWidth();
       return true; 
    }
+   
    @Override
    public boolean translateImageToText()
    {
@@ -457,6 +461,7 @@ class DataMatrix implements BarcodeIO
          return true;
       }
    }
+   
    @Override
    public boolean generateImageFromText()
    {
@@ -504,8 +509,8 @@ class DataMatrix implements BarcodeIO
       {
          return false;
       }
-   }
-   
+   }   
+
    private boolean writeCharToCol(int col, int code)
    {
       // since we assumed 10 as max height, code cannot
@@ -519,7 +524,8 @@ class DataMatrix implements BarcodeIO
          // Creates a boolean representation of binaryString
          // Bitwise & AND - Sets each bit to 1 if both bits are 1
          // 1 * pow(2, i)
-         // 32 bits limitation? Set to 10 in the meantime
+         // 32 bits limitation is satisfied by MAX_HEIGHT
+         // Set to 10 as we only deal with ASCII characters
          boolean[] bits = new boolean[10];
          for (int i = 0; i < 10; i++) {
              bits[i] = (code & (1 << i)) != 0;
